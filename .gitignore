@@ -1,0 +1,9 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+mlruns/
+.dvc/cache/
+data/raw/
+data/processed/
+models/trained/
