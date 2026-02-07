@@ -1,0 +1,29 @@
+stages:
+  get_data:
+    cmd: python src/data_loader.py
+    deps:
+      - src/data_loader.py
+      - params.yaml
+    outs:
+      - data/raw/imdb_train.parquet
+      - data/raw/imdb_test.parquet
+    params:
+      - data.dataset_name
+      - data.raw_dir
+      - data.train_file
+      - data.test_file
+
+  train:
+    cmd: python src/model.py
+    deps:
+      - src/model.py
+      - params.yaml
+      - data/raw/imdb_train.parquet
+      - data/raw/imdb_test.parquet
+    outs:
+      - models/trained/baseline_tfidf_logreg
+    params:
+      - train.tfidf_max_features
+      - train.tfidf_ngram_range
+      - train.logreg_C
+      - train.logreg_max_iter

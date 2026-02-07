@@ -1,0 +1,14 @@
+data:
+  dataset_name: imdb
+  raw_dir: data/raw
+  train_file: imdb_train.parquet
+  test_file: imdb_test.parquet
+
+mlflow:
+  experiment_name: sentiment-analysis
+
+train:
+  tfidf_max_features: 50000
+  tfidf_ngram_range: [1, 2]
+  logreg_C: 1.0
+  logreg_max_iter: 200

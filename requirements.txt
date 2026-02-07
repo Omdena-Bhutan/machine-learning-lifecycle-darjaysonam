@@ -1,0 +1,55 @@
+numpy
+pandas
+scikit-learn
+scipy
+
+# NLP transformer
+torch
+transformers
+datasets
+tokenizers
+accelerate
+evaluate
+sentencepiece
+safetensors
+
+# Metrics & utilities
+tqdm
+regex
+
+# Experiment tracking (MLflow)
+mlflow
+sqlalchemy
+psutil
+
+# DVC (data & model versioning)
+dvc
+
+# Config / pipeline params
+pyyaml
+hydra-core
+
+# Notebooks
+jupyter
+ipykernel
+
+# Plotting / analysis
+matplotlib
+seaborn
+
+# Serving (repo has app/api.py)
+flask
+gunicorn
+
+# Testing
+pytest
+pytest-cov
+requests
+
+# Code quality / CI tools
+black
+isort
+flake8
+
+# Packaging helpers
+python-dotenv
