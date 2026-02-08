@@ -56,6 +56,35 @@ stages:
     outs:
     - path: models/trained/baseline_tfidf_logreg
       hash: md5
-      md5: f1f7be0fe2716f97f6b9325c60aadc5f.dir
+      md5: 914e42edb7ac9c20b24456ed5899ffd8.dir
       size: 2381327
       nfiles: 5
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - path: data/raw/imdb_test.parquet
+      hash: md5
+      md5: e5f5d42a41ba56d12151d51f42b08e9f
+      size: 20048381
+    - path: models/trained/baseline_tfidf_logreg
+      hash: md5
+      md5: 914e42edb7ac9c20b24456ed5899ffd8.dir
+      size: 2381327
+      nfiles: 5
+    - path: params.yaml
+      hash: md5
+      md5: eb528c0ef0911d21ef4ef7f8096c7259
+      size: 275
+    - path: src/evaluate.py
+      hash: md5
+      md5: f7177296171bcedec48ebf7a0c16b2ce
+      size: 2346
+    outs:
+    - path: reports/confusion_matrix.png
+      hash: md5
+      md5: 18a971ee1f78f31938e71adc57dae3dd
+      size: 15008
+    - path: reports/roc_curve.png
+      hash: md5
+      md5: 7b73649787379fd6f2ca4b53a41851b9
+      size: 21830
