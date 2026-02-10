@@ -88,3 +88,25 @@ stages:
       hash: md5
       md5: 7b73649787379fd6f2ca4b53a41851b9
       size: 21830
+  predict_demo:
+    cmd: python src/inference.py batch --input data/processed/sample_texts.csv 
+      --output data/processed/predictions.csv
+    deps:
+    - path: data/processed/sample_texts.csv
+      hash: md5
+      md5: 3f670548ed2f35d9db160a4651372065
+      size: 76
+    - path: models/trained/baseline_tfidf_logreg
+      hash: md5
+      md5: 914e42edb7ac9c20b24456ed5899ffd8.dir
+      size: 2381327
+      nfiles: 5
+    - path: src/inference.py
+      hash: md5
+      md5: 1f9641b8a6eb6f51394f130bd52f6496
+      size: 2181
+    outs:
+    - path: data/processed/predictions.csv
+      hash: md5
+      md5: ded049633c4befbe82c665ad91a6b091
+      size: 187
