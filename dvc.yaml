@@ -27,3 +27,23 @@ stages:
       - train.tfidf_ngram_range
       - train.logreg_C
       - train.logreg_max_iter
+
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+      - src/evaluate.py
+      - params.yaml
+      - data/raw/imdb_test.parquet
+      - models/trained/baseline_tfidf_logreg
+    outs:
+      - reports/confusion_matrix.png
+      - reports/roc_curve.png
+  
+  predict_demo:
+    cmd: python src/inference.py batch --input data/processed/sample_texts.csv --output data/processed/predictions.csv
+    deps:
+      - src/inference.py
+      - models/trained/baseline_tfidf_logreg
+      - data/processed/sample_texts.csv
+    outs:
+      - data/processed/predictions.csv
