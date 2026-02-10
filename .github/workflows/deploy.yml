@@ -1,0 +1,63 @@
+name: deploy
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  docker_smoke_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t sentiment-api -f app/Dockerfile .
+
+      - name: Create dummy model for container
+        run: |
+          python -m pip install --upgrade pip
+          pip install scikit-learn joblib
+          python - <<'PY'
+          from pathlib import Path
+          import joblib
+          from sklearn.pipeline import Pipeline
+          from sklearn.feature_extraction.text import TfidfVectorizer
+          from sklearn.linear_model import LogisticRegression
+
+          out = Path("models/trained/baseline_tfidf_logreg")
+          out.mkdir(parents=True, exist_ok=True)
+
+          X = ["good movie", "bad movie", "excellent", "terrible"]
+          y = [1, 0, 1, 0]
+
+          model = Pipeline([
+              ("tfidf", TfidfVectorizer()),
+              ("clf", LogisticRegression(max_iter=200))
+          ])
+          model.fit(X, y)
+
+          joblib.dump(model, out / "model.pkl")
+          print("Saved model.pkl for docker smoke test")
+          PY
+
+      - name: Run container
+        run: |
+          docker run -d --name sentiment-api -p 8000:8000 \
+            -v "$PWD/models/trained/baseline_tfidf_logreg:/models/trained/baseline_tfidf_logreg" \
+            sentiment-api
+          sleep 3
+
+      - name: Smoke test endpoints
+        run: |
+          curl -s http://127.0.0.1:8000/health
+          curl -s -X POST http://127.0.0.1:8000/predict \
+            -H "Content-Type: application/json" \
+            -d '{"text":"This movie was amazing!"}'
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker logs sentiment-api || true
+          docker rm -f sentiment-api || true
