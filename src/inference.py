@@ -1,10 +1,14 @@
+import os
 from pathlib import Path
 import argparse
 import pandas as pd
 import joblib
 
-MODEL_DIR = Path("models/trained/baseline_tfidf_logreg")
-MODEL_FILE = MODEL_DIR / "model.pkl"
+# MODEL_DIR = Path("models/trained/baseline_tfidf_logreg")
+# MODEL_FILE = MODEL_DIR / "model.pkl"
+
+MODEL_FILE = Path(os.getenv("MODEL_FILE", "models/trained/baseline_tfidf_logreg/model.pkl"))
+MODEL_DIR = MODEL_FILE.parent
 
 def load_model():
     if not MODEL_FILE.exists():
