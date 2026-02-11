@@ -9,3 +9,5 @@ data/processed/
 models/trained/
 reports
 reports/
+.dvc/cache/
+.dvc
