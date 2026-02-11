@@ -3,6 +3,7 @@ import yaml
 import pandas as pd
 import mlflow
 import mlflow.sklearn
+import shutil
 
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -71,9 +72,15 @@ def main():
         mlflow.log_metrics({"accuracy": acc, "f1": f1, "roc_auc": auc})
 
         # Save model locally + log to MLflow
+        #local_model_path = model_dir / "baseline_tfidf_logreg"
+        #mlflow.sklearn.save_model(pipe, str(local_model_path))
+        #mlflow.sklearn.log_model(pipe, artifact_path="model")
+        
         local_model_path = model_dir / "baseline_tfidf_logreg"
+        if local_model_path.exists():
+            shutil.rmtree(local_model_path)  # remove old model folder safely
+
         mlflow.sklearn.save_model(pipe, str(local_model_path))
-        mlflow.sklearn.log_model(pipe, artifact_path="model")
 
         print("Saved model to:", local_model_path)
         print("Metrics:", {"accuracy": acc, "f1": f1, "roc_auc": auc})

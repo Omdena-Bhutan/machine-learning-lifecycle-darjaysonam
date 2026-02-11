@@ -53,3 +53,6 @@ flake8
 
 # Packaging helpers
 python-dotenv
+
+# Removing old model folder safely
+shutil
