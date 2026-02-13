@@ -24,6 +24,10 @@ jobs:
           pip install -U "huggingface-hub>=0.34.0,<1.0"
           pip install dvc
 
+      - name: Show HF versions
+        run: |
+          python -c "import transformers, huggingface_hub; print('transformers', transformers.__version__); print('huggingface_hub', huggingface_hub.__version__)"
+
       - name: Create tiny dummy raw data (so DVC can run in CI)
         run: |
           python - <<'PY'
@@ -68,6 +72,14 @@ jobs:
           print("Patched params.yaml for CI:", params["train"]["model_name"])
           PY
 
+      - name: Cache Hugging Face
+        uses: actions/cache@v4
+          with:
+            path: ~/.cache/huggingface
+            key: hf-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+            restore-keys: |
+              hf-${{ runner.os }}-
+
       - name: Run DVC pipeline
         run: |
           dvc repro -f
@@ -76,3 +88,5 @@ jobs:
         run: |
           ls -la models/trained || true
           ls -la models/trained/distilbert_sentiment || true
+
+
