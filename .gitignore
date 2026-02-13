@@ -14,8 +14,8 @@ mlruns/
 .dvc/tmp/
 
 # Data (handled by DVC or local only)
-data/raw/
-data/processed/
+#data/raw/
+#data/processed/
 
 # Reports / Artifacts
 reports/
