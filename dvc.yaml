@@ -1,11 +1,23 @@
-evaluate:
-  cmd: python src/evaluate_model.py
-  deps:
-    - src/evaluate_model.py
-    - params.yaml
-    - data/raw/imdb_test.parquet
-    - models/trained/baseline_tfidf_logreg
-  outs:
-    - reports/confusion_matrix.png
-    - reports/roc_curve.png
+stages:
+  train:
+    cmd: python src/model.py
+    deps:
+      - src/model.py
+      - params.yaml
+      - data/raw/imdb_train.parquet
+    outs:
+      - models/trained/distilbert_sentiment
 
+  evaluate:
+    cmd: python src/evaluate_model.py
+    deps:
+      - src/evaluate_model.py
+      - params.yaml
+      - data/raw/imdb_test.parquet
+      - models/trained/distilbert_sentiment
+    outs:
+      - reports/confusion_matrix.png
+      - reports/roc_curve.png
+    metrics:
+      - metrics.json:
+          cache: false
