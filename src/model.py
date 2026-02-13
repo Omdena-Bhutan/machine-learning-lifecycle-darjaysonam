@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import random
 import numpy as np
@@ -13,6 +14,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     TrainingArguments,
     Trainer,
+    set_seed as hf_set_seed,
 )
 import evaluate
 
@@ -23,8 +25,10 @@ def load_params(path: str = "params.yaml") -> dict:
 
 
 def set_seed(seed: int) -> None:
+    # ## Ensures reproducibility across Python / NumPy / Transformers (Torch)
     random.seed(seed)
     np.random.seed(seed)
+    hf_set_seed(seed)
 
 
 def main() -> None:
@@ -39,6 +43,7 @@ def main() -> None:
     train_path = raw_dir / d["train_file"]
     test_path = raw_dir / d["test_file"]
 
+    # ## Production artifact folder (DVC-tracked)
     model_dir = Path("models/trained/distilbert_sentiment")
     model_dir.mkdir(parents=True, exist_ok=True)
 
@@ -47,13 +52,13 @@ def main() -> None:
     train_df = pd.read_parquet(train_path)
     test_df = pd.read_parquet(test_path)
 
-    # Ensure correct types
+    # ## Ensure correct types
     train_df["text"] = train_df["text"].astype(str)
     train_df["label"] = train_df["label"].astype(int)
     test_df["text"] = test_df["text"].astype(str)
     test_df["label"] = test_df["label"].astype(int)
 
-    # Split train into train/val
+    # ## Split train into train/val
     val_frac = float(t["validation_split"])
     train_df = train_df.sample(frac=1.0, random_state=seed).reset_index(drop=True)
     n_val = int(len(train_df) * val_frac)
@@ -63,7 +68,12 @@ def main() -> None:
     ds_train = Dataset.from_pandas(tr_df[["text", "label"]], preserve_index=False)
     ds_val = Dataset.from_pandas(val_df[["text", "label"]], preserve_index=False)
 
-    tokenizer = AutoTokenizer.from_pretrained(t["model_name"])
+    # ✅ IMPORTANT:
+    # ## Allow CI to override model name (no secrets needed).
+    # ## GitHub Actions can set HF_MODEL_NAME=hf-internal-testing/tiny-random-distilbert
+    model_name = os.getenv("HF_MODEL_NAME", t["model_name"]).strip()
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     def tokenize(batch):
         return tokenizer(
@@ -81,7 +91,7 @@ def main() -> None:
     ds_val.set_format(type="torch", columns=cols)
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        t["model_name"], num_labels=2
+        model_name, num_labels=2
     )
 
     metric_acc = evaluate.load("accuracy")
@@ -100,7 +110,7 @@ def main() -> None:
         per_device_train_batch_size=int(t["batch_size"]),
         per_device_eval_batch_size=int(t["batch_size"]),
         learning_rate=float(t["learning_rate"]),
-        eval_strategy="epoch",
+        eval_strategy="epoch",   # ✅ newer transformers uses eval_strategy
         save_strategy="epoch",
         logging_steps=50,
         load_best_model_at_end=True,
@@ -117,9 +127,10 @@ def main() -> None:
     )
 
     with mlflow.start_run(run_name="distilbert_transfer_learning"):
+        # ## Log params (log the actual model_name used)
         mlflow.log_params(
             {
-                "model_name": t["model_name"],
+                "model_name": model_name,
                 "batch_size": t["batch_size"],
                 "epochs": t["epochs"],
                 "learning_rate": t["learning_rate"],
@@ -140,10 +151,11 @@ def main() -> None:
             }
         )
 
-        # Save trained model/tokenizer (production artifact)
+        # ## Save trained model/tokenizer (production artifact)
         trainer.model.save_pretrained(model_dir)
         tokenizer.save_pretrained(model_dir)
 
+        # ## Log artifacts to MLflow
         mlflow.log_artifacts(str(model_dir), artifact_path="model")
 
         print("Saved model to:", model_dir)
