@@ -1,0 +1,60 @@
+name: test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r app/requirements.txt
+          pip install pytest
+
+      - name: Create dummy transformer model for tests (no downloads)
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from transformers import BertConfig, BertForSequenceClassification, BertTokenizerFast
+
+          out = Path("models/trained/distilbert_sentiment")
+          out.mkdir(parents=True, exist_ok=True)
+
+          cfg = BertConfig(
+              vocab_size=30522,
+              hidden_size=64,
+              num_hidden_layers=2,
+              num_attention_heads=2,
+              intermediate_size=256,
+              max_position_embeddings=128,
+              num_labels=2,
+          )
+          model = BertForSequenceClassification(cfg)
+          model.save_pretrained(out)
+
+          vocab = out / "vocab.txt"
+          vocab.write_text(
+              "[PAD]\n[UNK]\n[CLS]\n[SEP]\n[MASK]\nthis\nmovie\nwas\namazing\n!\n",
+              encoding="utf-8"
+          )
+          tok = BertTokenizerFast(vocab_file=str(vocab), do_lower_case=True)
+          tok.save_pretrained(out)
+
+          print("Saved dummy transformer model to:", out)
+          PY
+
+      - name: Run tests
+        run: |
+          pytest -q
