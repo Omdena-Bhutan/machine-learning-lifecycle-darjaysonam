@@ -11,43 +11,58 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python (for dummy HF model)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Build Docker image
         run: |
           docker build -t sentiment-api -f app/Dockerfile .
 
-      - name: Create dummy model for container
+      - name: Create dummy transformer model folder for container (no downloads)
         run: |
           python -m pip install --upgrade pip
-          pip install scikit-learn joblib
+          pip install torch transformers
           python - <<'PY'
           from pathlib import Path
-          import joblib
-          from sklearn.pipeline import Pipeline
-          from sklearn.feature_extraction.text import TfidfVectorizer
-          from sklearn.linear_model import LogisticRegression
+          from transformers import BertConfig, BertForSequenceClassification, BertTokenizerFast
 
-          out = Path("models/trained/baseline_tfidf_logreg")
+          out = Path("models/trained/distilbert_sentiment")
           out.mkdir(parents=True, exist_ok=True)
 
-          X = ["good movie", "bad movie", "excellent", "terrible"]
-          y = [1, 0, 1, 0]
+          # Tiny BERT config (random weights) - fast, no internet needed
+          cfg = BertConfig(
+              vocab_size=30522,
+              hidden_size=64,
+              num_hidden_layers=2,
+              num_attention_heads=2,
+              intermediate_size=256,
+              max_position_embeddings=128,
+              num_labels=2,
+          )
+          model = BertForSequenceClassification(cfg)
+          model.save_pretrained(out)
 
-          model = Pipeline([
-              ("tfidf", TfidfVectorizer()),
-              ("clf", LogisticRegression(max_iter=200))
-          ])
-          model.fit(X, y)
+          # Use a tokenizer that doesn't require downloads: create a minimal vocab
+          # We build a tiny WordPiece vocab file so BertTokenizerFast can load it.
+          vocab = out / "vocab.txt"
+          vocab.write_text(
+              "[PAD]\n[UNK]\n[CLS]\n[SEP]\n[MASK]\nthis\nmovie\nwas\namazing\n!\n",
+              encoding="utf-8"
+          )
+          tok = BertTokenizerFast(vocab_file=str(vocab), do_lower_case=True)
+          tok.save_pretrained(out)
 
-          joblib.dump(model, out / "model.pkl")
-          print("Saved model.pkl for docker smoke test")
+          print("Saved dummy transformer model to:", out)
           PY
 
       - name: Run container
         run: |
           docker run -d --name sentiment-api -p 8000:8000 \
-            -v "$PWD/models/trained/baseline_tfidf_logreg:/models/trained/baseline_tfidf_logreg" \
+            -v "$PWD/models/trained/distilbert_sentiment:/models/trained/distilbert_sentiment" \
             sentiment-api
-          sleep 3
+          sleep 5
 
       - name: Smoke test endpoints
         run: |

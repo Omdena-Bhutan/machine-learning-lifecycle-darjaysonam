@@ -8,6 +8,7 @@ on:
 jobs:
   train_pipeline:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,16 +21,58 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -U "huggingface-hub>=0.34.0,<1.0"
           pip install dvc
 
-      - name: Attempt DVC pipeline (if data available)
+      - name: Create tiny dummy raw data (so DVC can run in CI)
         run: |
-          if [ -f "dvc.yaml" ]; then
-            echo "Found dvc.yaml"
-          fi
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
 
-          # If you later configure DVC remote, uncomment:
-          # dvc pull
+          Path("data/raw").mkdir(parents=True, exist_ok=True)
 
-          # Run pipeline (will work only if data exists locally or pulled)
-          dvc repro || echo "DVC repro skipped (likely no remote data yet)"
+          # tiny dataset
+          train = pd.DataFrame({
+              "text": ["good movie", "bad movie", "excellent film", "terrible film"] * 50,
+              "label": [1, 0, 1, 0] * 50
+          })
+          test = pd.DataFrame({
+              "text": ["amazing", "awful", "great", "boring"] * 25,
+              "label": [1, 0, 1, 0] * 25
+          })
+
+          train.to_parquet("data/raw/imdb_train.parquet", index=False)
+          test.to_parquet("data/raw/imdb_test.parquet", index=False)
+
+          print("Created:", "data/raw/imdb_train.parquet", "data/raw/imdb_test.parquet")
+          PY
+
+      - name: Make CI training fast (use tiny model + 1 epoch)
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          p = Path("params.yaml")
+          params = yaml.safe_load(p.read_text(encoding="utf-8"))
+
+          # Use a tiny HF model to avoid large downloads in CI
+          params["train"]["model_name"] = "sshleifer/tiny-distilbert-base-uncased"
+          params["train"]["epochs"] = 1
+          params["train"]["batch_size"] = 8
+          params["train"]["max_length"] = 64
+          params["train"]["validation_split"] = 0.2
+
+          p.write_text(yaml.safe_dump(params, sort_keys=False), encoding="utf-8")
+          print("Patched params.yaml for CI:", params["train"]["model_name"])
+          PY
+
+      - name: Run DVC pipeline
+        run: |
+          dvc repro -f
+
+      - name: Show produced artifacts
+        run: |
+          ls -la models/trained || true
+          ls -la models/trained/distilbert_sentiment || true

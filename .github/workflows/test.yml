@@ -23,34 +23,38 @@ jobs:
           pip install -r app/requirements.txt
           pip install pytest
 
-      - name: Create dummy model for tests
+      - name: Create dummy transformer model for tests (no downloads)
         run: |
           python - <<'PY'
           from pathlib import Path
-          import joblib
-          from sklearn.pipeline import Pipeline
-          from sklearn.feature_extraction.text import TfidfVectorizer
-          from sklearn.linear_model import LogisticRegression
+          from transformers import BertConfig, BertForSequenceClassification, BertTokenizerFast
 
-          out_dir = Path("tests/assets")
-          out_dir.mkdir(parents=True, exist_ok=True)
+          out = Path("models/trained/distilbert_sentiment")
+          out.mkdir(parents=True, exist_ok=True)
 
-          X = ["good movie", "bad movie", "excellent film", "terrible film"]
-          y = [1, 0, 1, 0]
+          cfg = BertConfig(
+              vocab_size=30522,
+              hidden_size=64,
+              num_hidden_layers=2,
+              num_attention_heads=2,
+              intermediate_size=256,
+              max_position_embeddings=128,
+              num_labels=2,
+          )
+          model = BertForSequenceClassification(cfg)
+          model.save_pretrained(out)
 
-          model = Pipeline([
-              ("tfidf", TfidfVectorizer()),
-              ("clf", LogisticRegression(max_iter=200))
-          ])
-          model.fit(X, y)
+          vocab = out / "vocab.txt"
+          vocab.write_text(
+              "[PAD]\n[UNK]\n[CLS]\n[SEP]\n[MASK]\nthis\nmovie\nwas\namazing\n!\n",
+              encoding="utf-8"
+          )
+          tok = BertTokenizerFast(vocab_file=str(vocab), do_lower_case=True)
+          tok.save_pretrained(out)
 
-          out = out_dir / "model.pkl"
-          joblib.dump(model, out)
-          print("Saved:", out)
+          print("Saved dummy transformer model to:", out)
           PY
 
       - name: Run tests
-        env:
-          MODEL_FILE: tests/assets/model.pkl
         run: |
           pytest -q

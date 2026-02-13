@@ -1,26 +1,38 @@
+from __future__ import annotations
+
 from pathlib import Path
 from flask import Flask, request, jsonify
-import joblib
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 app = Flask(__name__)
 
-MODEL_FILE = Path("../models/trained/baseline_tfidf_logreg/model.pkl")
+BASE_DIR = Path(__file__).resolve().parent
 
+LOCAL_MODEL_DIR = (BASE_DIR / ".." / "models" / "trained" / "distilbert_sentiment").resolve()
+DOCKER_MODEL_DIR = Path("/models/trained/distilbert_sentiment")
+
+MODEL_DIR = DOCKER_MODEL_DIR if DOCKER_MODEL_DIR.exists() else LOCAL_MODEL_DIR
+
+_tokenizer = None
 _model = None
 
+
 def get_model():
-    global _model
-    if _model is None:
-        if not MODEL_FILE.exists():
-            raise FileNotFoundError(
-                f"Model not found at {MODEL_FILE}. Run: dvc repro train"
-            )
-        _model = joblib.load(MODEL_FILE)
-    return _model
+    global _tokenizer, _model
+    if _tokenizer is None or _model is None:
+        if not MODEL_DIR.exists():
+            raise FileNotFoundError(f"Model not found at {MODEL_DIR}. Run: dvc repro train")
+        _tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
+        _model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR)
+        _model.eval()
+    return _tokenizer, _model
+
 
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
+
 
 @app.post("/predict")
 def predict():
@@ -30,23 +42,16 @@ def predict():
     if not text or not isinstance(text, str):
         return jsonify({"error": "Provide JSON with a string field: 'text'"}), 400
 
-    model = get_model()
-    proba_pos = float(model.predict_proba([text])[0, 1])
-    pred = int(proba_pos >= 0.5)
-    label = "positive" if pred == 1 else "negative"
+    tokenizer, model = get_model()
 
+    with torch.inference_mode():
+        enc = tokenizer([text], truncation=True, padding=True, max_length=128, return_tensors="pt")
+        logits = model(**enc).logits
+        proba_pos = float(torch.softmax(logits, dim=-1)[0, 1].cpu().numpy())
+
+    label = "positive" if proba_pos >= 0.5 else "negative"
     return jsonify({"label": label, "proba_positive": proba_pos})
 
-
-BASE_DIR = Path(__file__).resolve().parent
-
-# Local default (when running from app/)
-LOCAL_MODEL = (BASE_DIR / ".." / "models" / "trained" / "baseline_tfidf_logreg" / "model.pkl").resolve()
-
-# Docker default (we'll copy model to /models/...)
-DOCKER_MODEL = Path("/models/trained/baseline_tfidf_logreg/model.pkl")
-
-MODEL_FILE = DOCKER_MODEL if DOCKER_MODEL.exists() else LOCAL_MODEL
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)

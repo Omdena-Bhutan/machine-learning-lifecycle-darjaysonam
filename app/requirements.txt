@@ -1,5 +1,7 @@
-flask>=2.3
-joblib
-scikit-learn
-pandas
-pyyaml
+torch
+transformers
+flask
+gunicorn
+numpy
+safetensors
+sentencepiece
