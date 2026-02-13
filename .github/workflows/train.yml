@@ -8,6 +8,18 @@ on:
 jobs:
   train_pipeline:
     runs-on: ubuntu-latest
+
+    env:
+      # Force MLflow to log locally (prevents /C: permission error)
+      MLFLOW_TRACKING_URI: file:./mlruns
+
+      # Mark environment as CI (used in model.py to skip heavy artifact logging)
+      CI: "true"
+
+      # Keep HF cache local to repo workspace
+      HF_HOME: ./.hf_cache
+      TRANSFORMERS_CACHE: ./.hf_cache
+
     steps:
       - uses: actions/checkout@v4
 
@@ -16,7 +28,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -25,9 +37,11 @@ jobs:
 
       - name: Verify raw data exists
         run: |
+          echo "Checking raw dataset..."
           ls -lah data/raw || true
           test -f data/raw/imdb_train.parquet
           test -f data/raw/imdb_test.parquet
+          echo "Raw data verified."
 
       - name: Run training stage
         run: |
@@ -36,3 +50,10 @@ jobs:
       - name: Run evaluation stage (optional)
         run: |
           dvc repro -f evaluate || echo "evaluate skipped"
+
+      - name: List output artifacts (debug)
+        run: |
+          echo "Models folder:"
+          ls -lah models/trained || true
+          echo "MLruns folder:"
+          ls -lah mlruns || true

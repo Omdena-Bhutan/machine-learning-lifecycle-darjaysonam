@@ -46,7 +46,9 @@ def main() -> None:
     # ## Production artifact folder (DVC-tracked)
     model_dir = Path("models/trained/distilbert_sentiment")
     model_dir.mkdir(parents=True, exist_ok=True)
-
+    
+    # --- Force MLflow to log locally inside the repo (works on GitHub runners too) ---
+    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns"))
     mlflow.set_experiment(params["mlflow"]["experiment_name"])
 
     train_df = pd.read_parquet(train_path)
@@ -155,8 +157,11 @@ def main() -> None:
         trainer.model.save_pretrained(model_dir)
         tokenizer.save_pretrained(model_dir)
 
-        # ## Log artifacts to MLflow
-        mlflow.log_artifacts(str(model_dir), artifact_path="model")
+        # Logging the full HF folder in CI is heavy; skip in CI.
+        if os.getenv("CI", "").lower() == "true":
+            mlflow.log_text("Skipped model artifact logging in CI to keep runs lightweight.", "ci_note.txt")
+        else:
+            mlflow.log_artifacts(str(model_dir), artifact_path="model")
 
         print("Saved model to:", model_dir)
         print("Validation metrics:", val_metrics)
