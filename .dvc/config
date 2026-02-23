@@ -1,0 +1,4 @@
+[cache]
+    dir = C:\dvc-cache
+[core]
+    autostage = true

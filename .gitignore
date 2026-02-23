@@ -1,0 +1,48 @@
+# Python / Environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# MLflow
+mlruns/
+
+# DVC
+.dvc/cache/
+.dvc/tmp/
+
+# Data (handled by DVC or local only)
+#data/raw/
+#data/processed/
+
+# Reports / Artifacts
+reports/
+*.png
+
+# Trained Models 
+models/trained/**
+
+# Allow empty trained folder structure
+!models/trained/
+!models/trained/.gitkeep
+
+# HuggingFace & Trainer artifacts
+.cache/
+**/.cache/
+hf_cache/
+wandb/
+runs/
+
+# HuggingFace Trainer checkpoints
+*_hf_runs/
+**/_hf_runs/
+
+# Safetensor weights
+*.safetensors
+*.bin
+
+# OS Files
+.DS_Store
+Thumbs.db
